@@ -18,8 +18,9 @@ const app = express();
 
 // ─── Middleware ─────────────────────────────────────────────
 // ─── CORS ─────────────────────────────────────────────────
-const corsOrigin = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()).filter(Boolean)
+const corsOriginRaw = process.env.CORS_ORIGIN;
+const corsOrigin = corsOriginRaw && corsOriginRaw.trim()
+  ? corsOriginRaw.split(',').map(s => s.trim()).filter(Boolean)
   : true; // true = reflect origin (allow all)
 app.use(cors({
   origin: corsOrigin,
