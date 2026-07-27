@@ -17,7 +17,16 @@ const { startScheduler } = require('./services/scheduler');
 const app = express();
 
 // ─── Middleware ─────────────────────────────────────────────
-app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') || '*' }));
+// ─── CORS ─────────────────────────────────────────────────
+const corsOrigin = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()).filter(Boolean)
+  : true; // true = reflect origin (allow all)
+app.use(cors({
+  origin: corsOrigin,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
