@@ -1,0 +1,10 @@
+{
+  "name": "star-asn-web",
+  "version": "1.0.0",
+  "description": "STAR ASN Web App — Backend API + Auto Presensi Scheduler",
+  "type": "commonjs",
+  "scripts": {
+    "start": "cd backend && npm install && node server.js",
+    "dev": "cd backend && npm install && node --watch server.js"
+  }
+}
