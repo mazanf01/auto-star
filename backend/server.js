@@ -2,6 +2,14 @@
 
 require('dotenv').config();
 
+// ─── WebSocket polyfill for Supabase JS (needs native WebSocket, Node <22) ───
+if (typeof globalThis.WebSocket === 'undefined') {
+  try {
+    const WebSocket = require('ws');
+    globalThis.WebSocket = WebSocket;
+  } catch { /* ws not installed — Node 22+ has native WebSocket */ }
+}
+
 const express = require('express');
 const cors = require('cors');
 const { startScheduler } = require('./services/scheduler');

@@ -1,20 +1,7 @@
-# ─── Replit Config ──────────────────────────────────────────
-# Backend: Replit Pro (always-on, node-cron native)
-# Frontend: Cloudflare Pages (static CDN, free)
-#
-# Setup:
-#   1. Create Repl → Import from GitHub → pilih repo auto-star
-#   2. Replit auto-detect .replit config
-#   3. Set Secrets (Tools → Secrets):
-#      JWT_SECRET, ENCRYPTION_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY,
-#      CORS_ORIGIN, SCHEDULER_ENABLED=true, SCHEDULER_TIMEZONE=Asia/Jakarta
-#   4. Enable Always-On (Pro): Repl → Settings → Always-On = ON
-#   5. Run ▶️ — backend jalan di https://<repl-name>.<username>.repl.co
-
 run = "cd backend && npm install && npm start"
-hidden = [".config", "package.json", "package-lock.json"]
+hidden = [".config", "package-lock.json"]
 entrypoint = "backend/server.js"
-modules = ["nodejs-20"]
+modules = ["nodejs-22"]
 
 [nix]
 channel = "stable-23_11"
