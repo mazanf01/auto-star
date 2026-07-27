@@ -1,0 +1,57 @@
+# ─── Render Blueprint (render.yaml) ─────────────────────────
+# Deploy backend + frontend ke Render.com (free tier)
+# Backend: free web service (sleeps after 15min → perlu UptimeRobot keep-alive)
+# Frontend: free static site
+#
+# Cara pakai:
+#   1. Push repo ke GitHub
+#   2. Render Dashboard → New → Blueprint → pilih repo
+#   3. Render baca render.yaml ini otomatis
+#   4. Set env vars manual di dashboard (lihat .env.production.example)
+
+services:
+  # ─── Backend API ───
+  - type: web
+    name: star-asn-backend
+    env: docker
+    region: singapore
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: SCHEDULER_ENABLED
+        value: "true"
+      - key: SCHEDULER_TIMEZONE
+        value: Asia/Jakarta
+      - key: JWT_SECRET
+        sync: false  # set manual di dashboard
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: CORS_ORIGIN
+        value: https://star-asn-web.onrender.com
+      # Telegram (optional)
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_DEFAULT_CHAT_ID
+        sync: false
+
+  # ─── Frontend (static) ───
+  - type: web
+    name: star-asn-web
+    env: docker
+    region: singapore
+    plan: free
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: .
+    envVars:
+      - key: VITE_API_BASE
+        value: https://star-asn-backend.onrender.com/api

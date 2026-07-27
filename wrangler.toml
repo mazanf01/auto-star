@@ -1,0 +1,21 @@
+# ─── Cloudflare Pages config (wrangler.toml) ───────────────
+# Deploy frontend ke Cloudflare Pages (free, unlimited bandwidth, CDN global)
+#
+# Setup:
+#   1. npm i -g wrangler
+#   2. wrangler login
+#   3. Build:    cd frontend && npm install && npm run build
+#   4. Deploy:   wrangler pages deploy dist --project-name=star-asn-web
+#
+# Atau via Dashboard:
+#   - dash.cloudflare.com → Workers & Pages → Create → Connect Git
+#   - Build command: cd frontend && npm install && npm run build
+#   - Build output: frontend/dist
+#   - Env var: VITE_API_BASE=https://<backend-url>/api
+
+name = "star-asn-web"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "frontend/dist"
+
+[vars]
+  VITE_API_BASE = "https://star-asn-backend.fly.dev/api"
