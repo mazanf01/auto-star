@@ -51,16 +51,19 @@ app.use((err, req, res, next) => {
 });
 
 // ─── Start ─────────────────────────────────────────────────
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`\n╔══════════════════════════════════════════╗`);
-  console.log(`║  STAR ASN Web API                        ║`);
-  console.log(`║  Listening on http://localhost:${PORT}      ║`);
-  console.log(`║  CORS: ${process.env.CORS_ORIGIN || '*'}`.padEnd(44) + `║`);
-  console.log(`╚══════════════════════════════════════════╝\n`);
+// Skip listen() di Vercel/serverless (module di-export sebagai handler)
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, () => {
+    console.log(`\n╔══════════════════════════════════════════╗`);
+    console.log(`║  STAR ASN Web API                        ║`);
+    console.log(`║  Listening on http://localhost:${PORT}      ║`);
+    console.log(`║  CORS: ${process.env.CORS_ORIGIN || '*'}`.padEnd(44) + `║`);
+    console.log(`╚══════════════════════════════════════════╝\n`);
 
-  // Start auto-presensi scheduler
-  startScheduler();
-});
+    // Start auto-presensi scheduler (hanya di non-serverless)
+    startScheduler();
+  });
+}
 
 module.exports = app;

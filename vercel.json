@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "buildCommand": "cd backend && npm install",
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 60
+    },
+    "api/cron/presensi.js": {
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    { "source": "/api/cron/presensi", "destination": "/api/cron/presensi" },
+    { "source": "/api/(.*)", "destination": "/api/index.js" }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/presensi",
+      "schedule": "* * * * *"
+    }
+  ]
+}

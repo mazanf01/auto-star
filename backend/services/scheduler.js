@@ -409,6 +409,8 @@ async function runPresensiBatch(type) {
 /**
  * Start the cron scheduler.
  * Runs every minute, checks each user's time settings.
+ * Only used in non-serverless mode (Docker, VM, etc).
+ * For Vercel/serverless, use startSchedulerTick() via /api/cron/presensi endpoint.
  */
 function startScheduler() {
   if (process.env.SCHEDULER_ENABLED !== 'true') {
@@ -420,51 +422,10 @@ function startScheduler() {
 
   // Run every minute to check if it's time for any user's check-in/out
   const task = cron.schedule('* * * * *', async () => {
-    const now = new Date();
-    // Get current time in Asia/Jakarta
-    const localTime = now.toLocaleTimeString('en-US', {
-      timeZone: TZ,
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-    const [hh, mm] = localTime.split(':').map(s => parseInt(s, 10));
-    const currentTime = `${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`;
-
-    const sb = getSupabase();
-    const { data: settings } = await sb
-      .from('presensi_settings')
-      .select('*')
-      .eq('enabled', true);
-
-    if (!settings) return;
-
-    // Get current weekday (0=Sun ... 6=Sat)
-    const localStr = now.toLocaleString('en-US', { timeZone: TZ, weekday: 'short' });
-    const dayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-    const todayDay = dayMap[localStr.substring(0, 3)];
-
-    for (const s of settings) {
-      // Skip if not a work day
-      const workDays = s.work_days || [1, 2, 3, 4, 5];
-      if (!workDays.includes(todayDay)) continue;
-
-      // Check-in: exact time or within random range
-      const checkInTime = s.check_in_time ? String(s.check_in_time).substring(0, 5) : '08:00';
-      const checkOutTime = s.check_out_time ? String(s.check_out_time).substring(0, 5) : '16:00';
-      const inRandom = s.check_in_random || 0;
-      const outRandom = s.check_out_random || 0;
-
-      if (shouldTrigger(currentTime, checkInTime, inRandom) && !hasTriggeredToday(s.user_id, 'in')) {
-        markTriggered(s.user_id, 'in');
-        console.log(`[scheduler] Check-in time for user ${s.user_id} (now=${currentTime}, target=${checkInTime}±${inRandom}m)`);
-        runPresensiForUser(s, 'in').catch(e => console.error('[scheduler] check-in error:', e.message));
-      }
-      if (shouldTrigger(currentTime, checkOutTime, outRandom) && !hasTriggeredToday(s.user_id, 'out')) {
-        markTriggered(s.user_id, 'out');
-        console.log(`[scheduler] Check-out time for user ${s.user_id} (now=${currentTime}, target=${checkOutTime}±${outRandom}m)`);
-        runPresensiForUser(s, 'out').catch(e => console.error('[scheduler] check-out error:', e.message));
-      }
+    try {
+      await startSchedulerTick();
+    } catch (e) {
+      console.error('[scheduler] tick error:', e.message);
     }
   }, { timezone: TZ });
 
@@ -472,9 +433,79 @@ function startScheduler() {
   console.log('[scheduler] Cron job started (every minute check)');
 }
 
+/**
+ * Execute one scheduler tick — check all enabled users & trigger presensi if time matches.
+ * Called by:
+ *   - node-cron loop (startScheduler) in Docker/VM mode
+ *   - Vercel Cron endpoint (/api/cron/presensi) in serverless mode
+ *
+ * @returns {Promise<{checked: number, triggered: number, details: array}>}
+ */
+async function startSchedulerTick() {
+  const now = new Date();
+  // Get current time in Asia/Jakarta
+  const localTime = now.toLocaleTimeString('en-US', {
+    timeZone: TZ,
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const [hh, mm] = localTime.split(':').map(s => parseInt(s, 10));
+  const currentTime = `${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`;
+
+  const sb = getSupabase();
+  const { data: settings } = await sb
+    .from('presensi_settings')
+    .select('*')
+    .eq('enabled', true);
+
+  if (!settings || settings.length === 0) {
+    return { checked: 0, triggered: 0, details: [] };
+  }
+
+  // Get current weekday (0=Sun ... 6=Sat)
+  const localStr = now.toLocaleString('en-US', { timeZone: TZ, weekday: 'short' });
+  const dayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const todayDay = dayMap[localStr.substring(0, 3)];
+
+  const triggered = [];
+  for (const s of settings) {
+    // Skip if not a work day
+    const workDays = s.work_days || [1, 2, 3, 4, 5];
+    if (!workDays.includes(todayDay)) continue;
+
+    // Check-in: exact time or within random range
+    const checkInTime = s.check_in_time ? String(s.check_in_time).substring(0, 5) : '08:00';
+    const checkOutTime = s.check_out_time ? String(s.check_out_time).substring(0, 5) : '16:00';
+    const inRandom = s.check_in_random || 0;
+    const outRandom = s.check_out_random || 0;
+
+    if (shouldTrigger(currentTime, checkInTime, inRandom) && !hasTriggeredToday(s.user_id, 'in')) {
+      markTriggered(s.user_id, 'in');
+      console.log(`[scheduler] Check-in time for user ${s.user_id} (now=${currentTime}, target=${checkInTime}±${inRandom}m)`);
+      triggered.push({ user_id: s.user_id, type: 'in', time: currentTime });
+      runPresensiForUser(s, 'in').catch(e => console.error('[scheduler] check-in error:', e.message));
+    }
+    if (shouldTrigger(currentTime, checkOutTime, outRandom) && !hasTriggeredToday(s.user_id, 'out')) {
+      markTriggered(s.user_id, 'out');
+      console.log(`[scheduler] Check-out time for user ${s.user_id} (now=${currentTime}, target=${checkOutTime}±${outRandom}m)`);
+      triggered.push({ user_id: s.user_id, type: 'out', time: currentTime });
+      runPresensiForUser(s, 'out').catch(e => console.error('[scheduler] check-out error:', e.message));
+    }
+  }
+
+  return {
+    checked: settings.length,
+    triggered: triggered.length,
+    details: triggered,
+    currentTime,
+    timezone: TZ,
+  };
+}
+
 function stopScheduler() {
   scheduledTasks.forEach(t => t.stop());
   scheduledTasks = [];
 }
 
-module.exports = { startScheduler, stopScheduler, runPresensiForUser, runPresensiBatch };
+module.exports = { startScheduler, startSchedulerTick, stopScheduler, runPresensiForUser, runPresensiBatch };
